@@ -1,3 +1,7 @@
 <Solution>
+  <Project Path="Pirouette.Domain.Tests/Pirouette.Domain.Tests.csproj" />
+  <Project Path="Pirouette.Domain/Pirouette.Domain.csproj" />
+  <Project Path="Pirouette.Infrastructure/Pirouette.Infrastructure.csproj" />
+  <Project Path="Pirouette.Integration.Tests/Pirouette.Integration.Tests.csproj" />
   <Project Path="PirouetteApp/PirouetteApp.csproj" />
 </Solution>
