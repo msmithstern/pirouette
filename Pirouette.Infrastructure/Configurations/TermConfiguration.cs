@@ -16,5 +16,12 @@ public sealed class TermConfiguration : IEntityTypeConfiguration<Term>
             .WithMany()
             .HasForeignKey(t => t.StudioId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        // The database backstop for the guard in the Term constructor. Deliberately redundant:
+        // migrations, bulk imports, and manual SQL all bypass the domain layer, and a backwards
+        // term would produce nonsense rather than an error everywhere downstream.
+        builder.ToTable(t => t.HasCheckConstraint(
+            "CK_Term_EndNotBeforeStart",
+            "\"EndDate\" >= \"StartDate\""));
     }
 }

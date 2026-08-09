@@ -1,0 +1,204 @@
+@page "/members/new"
+@page "/members/{Id:guid}/edit"
+@rendermode InteractiveServer
+@inject MemberService MemberService
+@inject NavigationManager Navigation
+
+@* One component for both routes. The two forms differ only in whether an initial role can be
+   granted and in what the save button does, and splitting them would mean maintaining the same
+   eight fields and the same validation messaging in two files. *@
+
+<PageTitle>@(IsNew ? "Add member" : "Edit member") · Pirouette</PageTitle>
+
+<div class="breadcrumb">
+    <a href="@(IsNew ? "/members" : $"/members/{Id}")">← @(IsNew ? "Members" : "Back")</a>
+</div>
+
+<div class="page-header">
+    <div>
+        <h1>@(IsNew ? "Add member" : "Edit member")</h1>
+        <p class="subtitle">
+            One record per human, whatever their relationship to the studio. Roles are granted
+            separately and can be held several at a time.
+        </p>
+    </div>
+</div>
+
+@if (_loading)
+{
+    <div class="empty">Loading…</div>
+}
+else
+{
+    <div class="card" style="max-width: 640px;">
+        @if (_error is not null)
+        {
+            @* The message comes straight from the domain guard that rejected the input. Those
+               guards already explain themselves — "Date of birth (2027-01-01) is in the
+               future" — so re-wording them here would mean maintaining a second, vaguer copy
+               of every rule. *@
+            <div class="alert" role="alert">@_error</div>
+        }
+
+        <div class="field-row">
+            <div class="field">
+                <label for="first">First name</label>
+                <input id="first" type="text" @bind="_firstName" @bind:event="oninput"/>
+            </div>
+            <div class="field">
+                <label for="last">Last name</label>
+                <input id="last" type="text" @bind="_lastName" @bind:event="oninput"/>
+            </div>
+        </div>
+
+        <div class="field">
+            <label for="dob">Date of birth</label>
+            <input id="dob" type="date" @bind="_dateOfBirth"/>
+            <div class="help">
+                Optional. Age decides class eligibility, so it matters for students — but an
+                adult in a drop-in class has no reason to give one, and leaving it blank is a
+                real answer rather than an incomplete form.
+            </div>
+        </div>
+
+        <div class="field-row">
+            <div class="field">
+                <label for="email">Email</label>
+                <input id="email" type="email" @bind="_email"/>
+            </div>
+            <div class="field">
+                <label for="phone">Phone</label>
+                <input id="phone" type="text" @bind="_phone"/>
+            </div>
+        </div>
+
+        <div class="field">
+            <label for="household">Household</label>
+            <select id="household" @bind="_householdId">
+                <option value="">Bills individually</option>
+                @foreach (var household in _households)
+                {
+                    <option value="@household.Id">@household.Name</option>
+                }
+            </select>
+            <div class="help">
+                The billing unit. Siblings sharing one is what makes multi-child discounts
+                expressible later.
+            </div>
+        </div>
+
+        @if (IsNew)
+        {
+            <div class="field-row">
+                <div class="field">
+                    <label for="role">Initial role</label>
+                    <select id="role" @bind="_initialRole">
+                        <option value="">None for now</option>
+                        @foreach (var role in Enum.GetValues<StudioRole>())
+                        {
+                            <option value="@role">@role</option>
+                        }
+                    </select>
+                </div>
+                <div class="field">
+                    <label for="rolefrom">Role starts</label>
+                    <input id="rolefrom" type="date" @bind="_roleFrom"/>
+                </div>
+            </div>
+        }
+
+        <div class="form-actions">
+            <button class="button" @onclick="Save" disabled="@_saving">
+                @(_saving ? "Saving…" : IsNew ? "Create member" : "Save changes")
+            </button>
+            <a class="button secondary" href="@(IsNew ? "/members" : $"/members/{Id}")">Cancel</a>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public Guid? Id { get; set; }
+
+    private bool IsNew => Id is null;
+
+    private IReadOnlyList<HouseholdOption> _households = [];
+
+    private string _firstName = string.Empty;
+    private string _lastName = string.Empty;
+    private DateOnly? _dateOfBirth;
+    private string? _email;
+    private string? _phone;
+    private string _householdId = string.Empty;
+    private string _initialRole = nameof(StudioRole.Student);
+    private DateOnly _roleFrom = DateOnly.FromDateTime(DateTime.Now);
+
+    private bool _loading = true;
+    private bool _saving;
+    private string? _error;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _loading = true;
+
+        _households = await MemberService.ListHouseholdsAsync();
+
+        if (Id is { } id)
+        {
+            var existing = await MemberService.GetAsync(id, DateOnly.FromDateTime(DateTime.Now));
+
+            if (existing is not null)
+            {
+                _firstName = existing.FirstName;
+                _lastName = existing.LastName;
+                _dateOfBirth = existing.DateOfBirth;
+                _email = existing.Email;
+                _phone = existing.Phone;
+                _householdId = existing.HouseholdId?.ToString() ?? string.Empty;
+            }
+        }
+
+        _loading = false;
+    }
+
+    private async Task Save()
+    {
+        _saving = true;
+        _error = null;
+
+        var householdId = Guid.TryParse(_householdId, out var parsed) ? parsed : (Guid?)null;
+
+        try
+        {
+            if (Id is { } id)
+            {
+                await MemberService.UpdateAsync(
+                    id, _firstName, _lastName, _dateOfBirth, _email, _phone, householdId);
+
+                Navigation.NavigateTo($"/members/{id}");
+            }
+            else
+            {
+                var role = Enum.TryParse<StudioRole>(_initialRole, out var parsedRole)
+                    ? parsedRole
+                    : (StudioRole?)null;
+
+                var newId = await MemberService.CreateAsync(
+                    _firstName, _lastName, _dateOfBirth, _email, _phone, householdId,
+                    role, _roleFrom);
+
+                Navigation.NavigateTo($"/members/{newId}");
+            }
+        }
+        // Catching the exception types the domain guards actually throw, not Exception. A
+        // failed connection or a translation error is not something the user can fix by
+        // editing this form, and showing it here would dress up a bug as a validation message.
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+}

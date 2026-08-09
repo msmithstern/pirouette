@@ -1,0 +1,185 @@
+@page "/members/{Id:guid}"
+@rendermode InteractiveServer
+@inject MemberService MemberService
+@inject NavigationManager Navigation
+
+<PageTitle>@(_member?.FullName ?? "Member") · Pirouette</PageTitle>
+
+@if (_notFound)
+{
+    <div class="breadcrumb"><a href="/members">← Members</a></div>
+    <div class="card">
+        <div class="empty">That member no longer exists.</div>
+    </div>
+}
+else if (_member is null)
+{
+    <div class="empty">Loading…</div>
+}
+else
+{
+    <div class="breadcrumb"><a href="/members">← Members</a></div>
+
+    <div class="page-header">
+        <div>
+            <h1>@_member.FullName</h1>
+            <p class="subtitle">
+                @foreach (var role in _member.Roles.Where(r => r.IsCurrent(_today)).OrderBy(r => r.Role))
+                {
+                    <span class="badge role-@role.Role">@Humanise(role.Role)</span>
+                }
+                @if (_member.Roles.All(r => !r.IsCurrent(_today)))
+                {
+                    <span class="muted">No active roles</span>
+                }
+            </p>
+        </div>
+        <a class="button secondary" href="/members/@_member.Id/edit">Edit</a>
+    </div>
+
+    <div class="card">
+        <h2>Details</h2>
+        <dl class="definition-list" style="margin-top: 1rem;">
+            <dt>Date of birth</dt>
+            <dd>
+                @if (_member.DateOfBirth is { } dob)
+                {
+                    @dob.ToString("d MMMM yyyy")
+                    <span class="muted">(@_member.AgeOn(_today) years old)</span>
+                }
+                else
+                {
+                    @* Not chased as missing data. An adult in a drop-in class has no reason to
+                       give one, and a staff member's birthday is not the studio's business. *@
+                    <span class="muted">Not recorded</span>
+                }
+            </dd>
+
+            <dt>Email</dt>
+            <dd>@(_member.Email ?? "—")</dd>
+
+            <dt>Phone</dt>
+            <dd>@(_member.Phone ?? "—")</dd>
+
+            <dt>Household</dt>
+            <dd>@(_member.HouseholdName ?? "Bills individually")</dd>
+        </dl>
+    </div>
+
+    <div class="card">
+        <h2>Roles</h2>
+        <p class="card-hint">
+            Dated, and more than one at a time. This is what "was she teaching last autumn?"
+            is answered from — a boolean flag could not, which is why there isn't one.
+        </p>
+
+        @if (_member.Roles.Count == 0)
+        {
+            <div class="empty">No roles recorded.</div>
+        }
+        else
+        {
+            <table>
+                <thead>
+                <tr>
+                    <th>Role</th>
+                    <th>From</th>
+                    <th>Until</th>
+                    <th>Status</th>
+                </tr>
+                </thead>
+                <tbody>
+                @foreach (var role in _member.Roles.OrderByDescending(r => r.From))
+                {
+                    var current = role.IsCurrent(_today);
+                    <tr>
+                        <td><span class="badge role-@role.Role @(current ? "" : "ended")">@Humanise(role.Role)</span></td>
+                        <td>@role.From.ToString("d MMM yyyy")</td>
+                        <td>@(role.Until?.ToString("d MMM yyyy") ?? "—")</td>
+                        <td>@(current ? "Active" : role.From > _today ? "Not yet started" : "Ended")</td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        }
+    </div>
+
+    <div class="card">
+        <h2>Teaching</h2>
+        <p class="card-hint">
+            Kept apart from the roles above on purpose. A role says what someone may do
+            studio-wide; an assignment says what they teach, and neither can be inferred from
+            the other — the owner may teach nothing, and a new hire is staff before their first
+            class exists.
+        </p>
+
+        @if (_member.Teaching.Count == 0)
+        {
+            <div class="empty">Not assigned to any classes.</div>
+        }
+        else
+        {
+            <table>
+                <thead>
+                <tr>
+                    <th>Class</th>
+                    <th>Role</th>
+                    <th>From</th>
+                    <th>Until</th>
+                </tr>
+                </thead>
+                <tbody>
+                @foreach (var assignment in _member.Teaching.OrderBy(t => t.Role).ThenBy(t => t.ClassName))
+                {
+                    <tr>
+                        <td><a href="/classes/@assignment.DanceClassId">@assignment.ClassName</a></td>
+                        <td><span class="badge role-@assignment.Role">@assignment.Role</span></td>
+                        <td>@assignment.From.ToString("d MMM yyyy")</td>
+                        <td>@(assignment.Until?.ToString("d MMM yyyy") ?? "—")</td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        }
+    </div>
+
+    @if (_member.IsStaffOn(_today) && _member.AgeOn(_today) is { } age && age < 18)
+    {
+        <div class="card">
+            <h2>Minor on staff</h2>
+            <p class="card-hint" style="margin-bottom: 0;">
+                @_member.FirstName is @age and holds a staff role, so the roster for the class
+                they assist has to reach them without classmates' home addresses, guardian
+                contact details, or medical notes. Row-level scoping cannot express that — the
+                row is permitted and only some of its columns are not — which is why the
+                privacy tier hangs off the role rather than off the assignment, and why every
+                read behind this page already returns a projection instead of an entity.
+                Enforcement lands with authentication.
+            </p>
+        </div>
+    }
+}
+
+@code {
+    [Parameter] public Guid Id { get; set; }
+
+    private readonly DateOnly _today = DateOnly.FromDateTime(DateTime.Now);
+
+    private MemberDetailView? _member;
+    private bool _notFound;
+
+    // OnParametersSetAsync, not OnInitializedAsync: navigating from one member to another
+    // reuses the component instance, so initialisation would not run again and the page would
+    // keep showing the person you just left.
+    protected override async Task OnParametersSetAsync()
+    {
+        _member = await MemberService.GetAsync(Id, _today);
+        _notFound = _member is null;
+    }
+
+    private static string Humanise(StudioRole role) => role switch
+    {
+        StudioRole.AssistantStaff => "Assistant",
+        _ => role.ToString()
+    };
+}

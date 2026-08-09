@@ -1,7 +1,156 @@
-﻿@page "/"
+@page "/"
+@rendermode InteractiveServer
+@inject DashboardService Dashboard
+@* Named ClassService rather than Classes: a property called Classes would shadow the Classes
+   page component, which sits in this same namespace. It would still compile, and it would
+   still be confusing. *@
+@inject ClassService ClassService
 
-<PageTitle>Home</PageTitle>
+<PageTitle>Dashboard · Pirouette</PageTitle>
 
-<h1>Hello, world!</h1>
+<div class="page-header">
+    <div>
+        <h1>Dashboard</h1>
+        <p class="subtitle">
+            @if (_overview?.CurrentTerm is { } term)
+            {
+                @term.Name
 
-Welcome to your new app.
+                @if (!term.Contains(_today))
+                {
+                    <text> · <span class="muted">not currently running</span></text>
+                }
+            }
+            else
+            {
+                <text>No terms have been set up yet.</text>
+            }
+        </p>
+    </div>
+</div>
+
+@if (_overview is null)
+{
+    <div class="empty">Loading…</div>
+}
+else
+{
+    <div class="card-grid">
+        <div class="stat">
+            <div class="value numeric">@_overview.ActiveStudents</div>
+            <div class="label">Active students</div>
+        </div>
+        <div class="stat">
+            <div class="value numeric">@_overview.ActiveStaff</div>
+            <div class="label">Teaching staff</div>
+        </div>
+        <div class="stat">
+            <div class="value numeric">@_overview.ClassesInTerm</div>
+            <div class="label">Classes this term</div>
+        </div>
+        <div class="stat">
+            <div class="value numeric">@_overview.Rooms</div>
+            <div class="label">Rooms</div>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>Weekly pattern</h2>
+        <p class="card-hint">
+            Built from each class's meeting patterns, not from dated sessions — those arrive in
+            the next milestone, and with them cancellations, room changes, and substitutions for
+            a single date. Until then this is the schedule as it is <em>defined</em>, which is
+            not quite the same thing as the schedule as it will happen.
+        </p>
+
+        @if (_week.Count == 0)
+        {
+            <div class="empty">No classes have a recurring schedule yet.</div>
+        }
+        else
+        {
+            <table>
+                <thead>
+                <tr>
+                    <th style="width: 7rem;">Day</th>
+                    <th>Classes</th>
+                </tr>
+                </thead>
+                <tbody>
+                @foreach (var (day, entries) in _week)
+                {
+                    <tr>
+                        <td><strong>@day</strong></td>
+                        <td>
+                            @foreach (var entry in entries)
+                            {
+                                <div>
+                                    <span class="numeric">@entry.Pattern.StartTime.ToString("HH:mm")–@entry.Pattern.EndTime.ToString("HH:mm")</span>
+                                    &nbsp;<a href="/classes/@entry.Class.Id">@entry.Class.Name</a>
+                                    <span class="muted">
+                                        @(entry.Class.RoomName ?? "no room")
+                                    </span>
+                                </div>
+                            }
+                        </td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        }
+    </div>
+
+    @if (_unscheduled.Count > 0)
+    {
+        <div class="card">
+            <h2>No recurring schedule</h2>
+            <p class="card-hint">
+                Valid, not broken. A meeting pattern is a generator rather than a requirement,
+                so a rehearsal series whose dates are set as the performance approaches simply
+                has none — and needs no special case anywhere in the model.
+            </p>
+            <table>
+                <tbody>
+                @foreach (var danceClass in _unscheduled)
+                {
+                    <tr>
+                        <td><a href="/classes/@danceClass.Id">@danceClass.Name</a></td>
+                        <td class="muted">@danceClass.StartDate.ToString("d MMM") – @danceClass.EndDate.ToString("d MMM yyyy")</td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    }
+}
+
+@code {
+    private readonly DateOnly _today = DateOnly.FromDateTime(DateTime.Now);
+
+    private StudioOverview? _overview;
+    private List<(DayOfWeek Day, List<ScheduleEntry> Entries)> _week = [];
+    private List<ClassListItem> _unscheduled = [];
+
+    private sealed record ScheduleEntry(ClassListItem Class, MeetingPatternView Pattern);
+
+    protected override async Task OnInitializedAsync()
+    {
+        _overview = await Dashboard.GetAsync(_today);
+
+        var classes = await ClassService.ListAsync(_overview.CurrentTerm?.Id);
+
+        // Flattened class-by-pattern, because a class meeting on Tuesdays and Thursdays has to
+        // appear under both days. Grouping the classes themselves would put a twice-weekly
+        // class under whichever day happened to come first.
+        _week = classes
+            .SelectMany(c => c.MeetingPatterns.Select(p => new ScheduleEntry(c, p)))
+            .GroupBy(e => e.Pattern.DayOfWeek)
+            // Monday first. DayOfWeek numbers Sunday as 0, which would otherwise open the week
+            // on a Sunday — technically correct for the enum, wrong for a timetable.
+            .OrderBy(g => ((int)g.Key + 6) % 7)
+            .Select(g => (g.Key, g.OrderBy(e => e.Pattern.StartTime).ToList()))
+            .ToList();
+
+        _unscheduled = classes.Where(c => c.MeetingPatterns.Count == 0).ToList();
+    }
+}

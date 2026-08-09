@@ -1,0 +1,9 @@
+@* NavLink handles the active-item highlight, including keeping "Members" lit while a member's
+   own page is open. Match.Prefix is what makes /members/{id} count as being under Members;
+   the dashboard needs Match.All or it would match every route in the app. *@
+
+<nav class="nav">
+    <NavLink href="" Match="NavLinkMatch.All">Dashboard</NavLink>
+    <NavLink href="members">Members</NavLink>
+    <NavLink href="classes">Classes</NavLink>
+</nav>
