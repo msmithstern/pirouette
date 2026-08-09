@@ -1,0 +1,35 @@
+name: CI
+
+on:
+  push:
+    # Both listed because the local branch is `master` while GitHub's default for new repos is
+    # `main`. A workflow that never triggers looks identical to one that always passes.
+    branches: [main, master]
+  pull_request:
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build --no-restore --configuration Release
+
+      # The integration tests start a PostgreSQL container through Testcontainers. No service
+      # container is configured here on purpose: GitHub-hosted Ubuntu runners ship with a
+      # working Docker daemon, and Testcontainers manages the database's lifecycle itself.
+      # Declaring Postgres as a `services:` block as well would give two databases and a
+      # connection string pointing at the wrong one.
+      - name: Test
+        run: dotnet test --no-build --configuration Release --verbosity normal
