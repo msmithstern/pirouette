@@ -1,0 +1,126 @@
+@page "/members"
+@rendermode InteractiveServer
+@inject MemberService MemberService
+
+<PageTitle>Members · Pirouette</PageTitle>
+
+<div class="page-header">
+    <div>
+        <h1>Members</h1>
+        <p class="subtitle">
+            One row per human. Students, staff, and guardians share this table — someone can be
+            more than one of them, and several here are.
+        </p>
+    </div>
+    <a class="button" href="/members/new">Add member</a>
+</div>
+
+<div class="toolbar">
+    @* oninput rather than onchange so results narrow as you type. Blazor Server round-trips
+       every keystroke over the circuit, which is fine at studio scale — a few hundred rows
+       behind an indexed ILIKE — and would need debouncing before it faced a real directory. *@
+    <input type="search" placeholder="Search by name…" value="@_search"
+           @oninput="OnSearchChanged" aria-label="Search members"/>
+
+    <select @bind="_roleFilter" @bind:after="Reload" aria-label="Filter by role">
+        <option value="">All roles</option>
+        @foreach (var role in Enum.GetValues<StudioRole>())
+        {
+            <option value="@role">@Humanise(role)</option>
+        }
+    </select>
+
+    <span class="muted">@_visible.Count of @_all.Count</span>
+</div>
+
+<div class="card">
+    @if (_loading)
+    {
+        <div class="empty">Loading…</div>
+    }
+    else if (_visible.Count == 0)
+    {
+        <div class="empty">No members match that.</div>
+    }
+    else
+    {
+        <table>
+            <thead>
+            <tr>
+                <th>Name</th>
+                <th>Roles today</th>
+                <th>Age</th>
+                <th>Household</th>
+                <th>Email</th>
+            </tr>
+            </thead>
+            <tbody>
+            @foreach (var member in _visible)
+            {
+                <tr>
+                    <td><a href="/members/@member.Id">@member.FullName</a></td>
+                    <td>
+                        @if (member.CurrentRoles.Count == 0)
+                        {
+                            <span class="muted">None active</span>
+                        }
+                        else
+                        {
+                            @foreach (var role in member.CurrentRoles.OrderBy(r => r))
+                            {
+                                <span class="badge role-@role">@Humanise(role)</span>
+                            }
+                        }
+                    </td>
+                    <td class="numeric">
+                        @(member.AgeOn(_today)?.ToString() ?? "—")
+                    </td>
+                    <td>@(member.HouseholdName ?? "—")</td>
+                    <td class="muted">@(member.Email ?? "—")</td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    }
+</div>
+
+@code {
+    private readonly DateOnly _today = DateOnly.FromDateTime(DateTime.Now);
+
+    private IReadOnlyList<MemberListItem> _all = [];
+    private List<MemberListItem> _visible = [];
+    private string _search = string.Empty;
+    private string _roleFilter = string.Empty;
+    private bool _loading = true;
+
+    protected override Task OnInitializedAsync() => Reload();
+
+    private async Task OnSearchChanged(ChangeEventArgs e)
+    {
+        _search = e.Value?.ToString() ?? string.Empty;
+        await Reload();
+    }
+
+    private async Task Reload()
+    {
+        _loading = true;
+
+        // Name search runs in the database, role filter runs here. Not an inconsistency: the
+        // role filter needs "roles active today", which the query has already computed and
+        // returned, so pushing it down would mean expressing the same date window twice.
+        _all = await MemberService.ListAsync(_search, _today);
+
+        _visible = string.IsNullOrEmpty(_roleFilter) || !Enum.TryParse<StudioRole>(_roleFilter, out var role)
+            ? _all.ToList()
+            : _all.Where(m => m.CurrentRoles.Contains(role)).ToList();
+
+        _loading = false;
+    }
+
+    /// <summary>"AssistantStaff" reads badly in a table. Split it on the capitals.</summary>
+    private static string Humanise(StudioRole role) => role switch
+    {
+        StudioRole.AssistantStaff => "Assistant",
+        _ => role.ToString()
+    };
+}

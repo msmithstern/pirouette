@@ -16,5 +16,9 @@ public sealed class RoomConfiguration : IEntityTypeConfiguration<Room>
             .WithMany()
             .HasForeignKey(r => r.StudioId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        // Backstop for the guard in the Room constructor. A zero-capacity room would make
+        // over-enrolment detection reject every enrolment rather than none.
+        builder.ToTable(t => t.HasCheckConstraint("CK_Room_CapacityPositive", "\"Capacity\" > 0"));
     }
 }

@@ -5,8 +5,9 @@ enrollment, and attendance.
 
 [![CI](https://github.com/msmithstern/pirouette/actions/workflows/ci.yml/badge.svg)](https://github.com/msmithstern/pirouette/actions/workflows/ci.yml)
 
-> **Status: in development.** The data layer, multi-tenancy, and test infrastructure are
-> complete and covered by tests. The user interface is not yet built — see
+> **Status: in development.** The domain model, multi-tenancy, and test infrastructure are
+> complete and covered by tests, and there is a working directory and class schedule in the
+> browser. Session generation, enrolment, attendance, and authentication are not built — see
 > [Roadmap](#roadmap) for what exists and what doesn't.
 
 ---
@@ -28,13 +29,19 @@ entirely.
 
 **Built and tested:**
 
-- Domain model for studios, terms, and rooms, with invariants enforced at construction
+- Domain model for studios, terms, rooms, households, members, classes, meeting patterns, and
+  teaching assignments — every invariant enforced at construction, with `CHECK` constraints
+  behind them as a second layer
+- One `Member` per human, with roles as dated facts, so a student who also teaches is one row
 - Multi-tenant data access — global query filters and write-side tenant stamping
-- Integration tests proving tenant isolation against a real PostgreSQL instance
-- EF Core migrations, Docker Compose for local development, CI on every push
+- Integration tests proving tenant isolation and constraint enforcement against real PostgreSQL
+- A member directory and class schedule in the browser, with search, filtering, and validation
+  messages that come from the domain guards themselves
+- EF Core migrations, seed data for one realistic studio, Docker Compose, CI on every push
 
-**Not built yet:** classes, sessions, scheduling, enrollment, attendance, authentication, and
-the user interface. The application currently starts and serves the default Blazor template.
+**Not built yet:** dated sessions, schedule exceptions, conflict detection, enrolment,
+attendance, and authentication. There is no sign-in; the current studio comes from
+configuration until authorisation lands.
 
 ## Architecture
 
@@ -87,6 +94,24 @@ express that, so permissions are two axes: **which classes** (from assignments) 
 fields** (from role tier), enforced by returning audience-specific projections rather than
 entities.
 
+### Unrepresentable beats validated
+
+A meeting pattern stores a start time and a **duration**, never an end time. With a start and
+an end, a class that finishes before it begins is a state the type admits and a check has to
+reject — so the check has to exist, be remembered on every write path, and be tested. With a
+start and a duration there is no pair of values that describes one, and the check has nowhere
+to live because it has nothing to catch.
+
+That does not remove validation, it moves it somewhere narrower: `Duration > 0`, an eight-hour
+sanity bound that catches a value entered in the wrong unit, and a rejection rather than a
+silent wrap when a class would cross midnight. Each is enforced in three deliberately redundant
+layers — a guard clause in the domain, a `CHECK` constraint in the database, and a friendly
+message in the UI — because migrations, bulk imports, and manual SQL all bypass the first one.
+
+The constraint tests go around the domain layer with raw SQL on purpose. A test that went
+through the constructor would only prove the constructor works, which the unit tests already
+do, and would leave the backstop unverified.
+
 ### Multi-tenancy from the first migration
 
 Every tenant-owned entity implements `ITenantOwned`, and query filters are applied by reflection
@@ -118,11 +143,22 @@ dotnet user-secrets set "ConnectionStrings:Pirouette" \
   "Host=localhost;Port=5432;Database=pirouette;Username=pirouette;Password=localdev" \
   --project PirouetteApp
 
+dotnet run --project PirouetteApp
+```
+
+In `Development` the app applies migrations on startup and seeds one realistic studio — a term,
+three rooms, two families, staff, and six classes — so a fresh clone goes straight to a
+populated UI. The seed runs through the real constructors rather than `HasData`, which makes it
+its own small check that the invariants admit realistic input. It deliberately includes a
+student-teacher, a class with no meeting pattern, a one-week substitute, and two siblings in
+one household: the four cases the model was shaped around.
+
+To apply migrations by hand instead:
+
+```bash
 dotnet ef database update \
   --project Pirouette.Infrastructure \
   --startup-project PirouetteApp
-
-dotnet run --project PirouetteApp
 ```
 
 ## Tests
@@ -140,7 +176,7 @@ the one the migrations actually produce — a broken migration fails the suite.
 | | Milestone |
 |---|---|
 | ✅ | Foundation — projects, tenancy, migrations, CI |
-| ⬜ | Core entities and CRUD — members, classes, assignments |
+| ✅ | Core entities and CRUD — members, classes, assignments |
 | ⬜ | Session generation from recurring patterns |
 | ⬜ | Schedule exceptions — cancellations, reschedules, substitutes |
 | ⬜ | Conflict detection — room, instructor, student, capacity |

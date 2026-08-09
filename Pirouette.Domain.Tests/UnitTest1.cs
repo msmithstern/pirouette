@@ -1,10 +1,2 @@
-﻿namespace Pirouette.Domain.Tests;
-
-public class UnitTest1
-{
-    [Fact]
-    public void Test1()
-    {
-
-    }
-}
+// Placeholder from the project template. Delete this file — its tests are now in
+// MemberTests, HouseholdTests, MeetingPatternTests, and DanceClassTests.

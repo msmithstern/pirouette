@@ -1,0 +1,153 @@
+@page "/classes/{Id:guid}"
+@rendermode InteractiveServer
+@inject ClassService ClassService
+
+<PageTitle>@(_class?.Name ?? "Class") · Pirouette</PageTitle>
+
+@if (_notFound)
+{
+    <div class="breadcrumb"><a href="/classes">← Classes</a></div>
+    <div class="card">
+        <div class="empty">That class no longer exists.</div>
+    </div>
+}
+else if (_class is null)
+{
+    <div class="empty">Loading…</div>
+}
+else
+{
+    <div class="breadcrumb"><a href="/classes">← Classes</a></div>
+
+    <div class="page-header">
+        <div>
+            <h1>@_class.Name</h1>
+            <p class="subtitle">
+                @_class.Style@(_class.Level is null ? "" : $" · {_class.Level}") ·
+                @_class.AgeRange · capacity @_class.Capacity
+            </p>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>Schedule</h2>
+        <p class="card-hint">
+            @if (_class.MeetingPatterns.Count == 0)
+            {
+                <text>
+                    This class has no meeting pattern, and that is a valid state rather than a
+                    gap. A pattern is a generator, not a requirement — a rehearsal series whose
+                    dates are set as the performance approaches simply has none, and needs no
+                    special case anywhere in the model.
+                </text>
+            }
+            else
+            {
+                <text>
+                    Stored as a day, a start time, and a duration — never as an end time. A
+                    class ending before it begins is not rejected here so much as
+                    unrepresentable: there is no pair of values the type accepts that describes
+                    one.
+                </text>
+            }
+        </p>
+
+        @if (_class.MeetingPatterns.Count > 0)
+        {
+            <table>
+                <thead>
+                <tr>
+                    <th>Day</th>
+                    <th>Starts</th>
+                    <th>Ends</th>
+                    <th>Duration</th>
+                </tr>
+                </thead>
+                <tbody>
+                @foreach (var pattern in _class.MeetingPatterns)
+                {
+                    <tr>
+                        <td>@pattern.DayOfWeek</td>
+                        <td class="numeric">@pattern.StartTime.ToString("HH:mm")</td>
+                        <td class="numeric">@pattern.EndTime.ToString("HH:mm")</td>
+                        <td class="numeric muted">@Describe(pattern.Duration)</td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        }
+
+        <dl class="definition-list" style="margin-top: 1.25rem;">
+            <dt>Runs</dt>
+            <dd>@_class.StartDate.ToString("d MMM yyyy") – @_class.EndDate.ToString("d MMM yyyy")</dd>
+            <dt>Room</dt>
+            <dd>@(_class.RoomName ?? "Not yet assigned")</dd>
+        </dl>
+    </div>
+
+    <div class="card">
+        <h2>Who teaches this</h2>
+        <p class="card-hint">
+            A row per person, with a capacity and effective dates, rather than one instructor
+            column. A single foreign key could not express any of co-teaching, an assistant
+            alongside a lead, a substitute for one date, or an instructor changing mid-term —
+            and a studio does all four in a normal term.
+        </p>
+
+        @if (_class.Assignments.Count == 0)
+        {
+            <div class="empty">Nobody is assigned to this class.</div>
+        }
+        else
+        {
+            <table>
+                <thead>
+                <tr>
+                    <th>Person</th>
+                    <th>Capacity</th>
+                    <th>From</th>
+                    <th>Until</th>
+                    <th>Status</th>
+                </tr>
+                </thead>
+                <tbody>
+                @foreach (var assignment in _class.Assignments.OrderBy(a => a.Role).ThenBy(a => a.From))
+                {
+                    var current = assignment.IsCurrent(_today);
+                    <tr>
+                        <td><a href="/members/@assignment.MemberId">@assignment.MemberName</a></td>
+                        <td><span class="badge role-@assignment.Role @(current ? "" : "ended")">@assignment.Role</span></td>
+                        <td>@assignment.From.ToString("d MMM yyyy")</td>
+                        <td>@(assignment.Until?.ToString("d MMM yyyy") ?? "—")</td>
+                        <td>@(current ? "Active" : assignment.From > _today ? "Upcoming" : "Ended")</td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        }
+    </div>
+}
+
+@code {
+    [Parameter] public Guid Id { get; set; }
+
+    private readonly DateOnly _today = DateOnly.FromDateTime(DateTime.Now);
+
+    private ClassListItem? _class;
+    private bool _notFound;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _class = await ClassService.GetAsync(Id);
+        _notFound = _class is null;
+    }
+
+    /// <summary>"1h 30m", "45m". Rendered rather than shown raw, because TimeSpan.ToString()
+    /// produces "01:30:00", which reads as a time of day and not as a length.</summary>
+    private static string Describe(TimeSpan duration) => duration switch
+    {
+        { Hours: 0 } => $"{duration.Minutes}m",
+        { Minutes: 0 } => $"{(int)duration.TotalHours}h",
+        _ => $"{(int)duration.TotalHours}h {duration.Minutes}m"
+    };
+}

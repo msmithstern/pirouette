@@ -16,6 +16,16 @@ public class PirouetteDbContext(
     public DbSet<Studio> Studios => Set<Studio>();
     public DbSet<Term> Terms => Set<Term>();
     public DbSet<Room> Rooms => Set<Room>();
+    public DbSet<Household> Households => Set<Household>();
+    public DbSet<Member> Members => Set<Member>();
+    public DbSet<DanceClass> DanceClasses => Set<DanceClass>();
+
+    // MemberRole, MeetingPattern, and ClassAssignment are reached through their aggregate roots
+    // and deliberately have no DbSet. EF still maps them — they are discovered through the
+    // navigations — and they still receive tenant filters and stamping, because those are
+    // applied by reflection over ITenantOwned rather than over the DbSets. Omitting the
+    // property is the cheapest way to say "do not query these directly"; a caller who wants
+    // one goes through the class or the member that owns it, where the invariants live.
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

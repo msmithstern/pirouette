@@ -1,0 +1,137 @@
+@page "/classes"
+@rendermode InteractiveServer
+@inject ClassService ClassService
+
+<PageTitle>Classes · Pirouette</PageTitle>
+
+<div class="page-header">
+    <div>
+        <h1>Classes</h1>
+        <p class="subtitle">
+            Recurring definitions, not dated occurrences. Each of these will generate sessions
+            across the term in the next milestone; the sessions are where cancellations, room
+            changes, and substitutions for a single date will live.
+        </p>
+    </div>
+</div>
+
+<div class="toolbar">
+    <select @bind="_termId" @bind:after="Reload" aria-label="Filter by term">
+        <option value="">All terms</option>
+        @foreach (var term in _terms)
+        {
+            <option value="@term.Id">@term.Name</option>
+        }
+    </select>
+    <span class="muted">@_classes.Count classes</span>
+</div>
+
+<div class="card">
+    @if (_loading)
+    {
+        <div class="empty">Loading…</div>
+    }
+    else if (_classes.Count == 0)
+    {
+        <div class="empty">No classes in this term yet.</div>
+    }
+    else
+    {
+        <table>
+            <thead>
+            <tr>
+                <th>Class</th>
+                <th>Schedule</th>
+                <th>Room</th>
+                <th>Ages</th>
+                <th>Cap</th>
+                <th>Teaching</th>
+            </tr>
+            </thead>
+            <tbody>
+            @foreach (var danceClass in _classes)
+            {
+                <tr>
+                    <td>
+                        <a href="/classes/@danceClass.Id">@danceClass.Name</a>
+                        <div class="muted">
+                            @danceClass.Style@(danceClass.Level is null ? "" : $" · {danceClass.Level}")
+                        </div>
+                    </td>
+                    <td>
+                        @if (danceClass.MeetingPatterns.Count == 0)
+                        {
+                            <span class="muted">No recurring schedule</span>
+                        }
+                        else
+                        {
+                            @foreach (var pattern in danceClass.MeetingPatterns)
+                            {
+                                <div class="numeric">@pattern</div>
+                            }
+                        }
+                    </td>
+                    <td>@(danceClass.RoomName ?? "—")</td>
+                    <td>@danceClass.AgeRange</td>
+                    <td class="numeric">@danceClass.Capacity</td>
+                    <td>
+                        @foreach (var assignment in CurrentAssignments(danceClass))
+                        {
+                            <div>
+                                <a href="/members/@assignment.MemberId">@assignment.MemberName</a>
+                                <span class="badge role-@assignment.Role">@assignment.Role</span>
+                            </div>
+                        }
+                        @if (!CurrentAssignments(danceClass).Any())
+                        {
+                            <span class="muted">Unassigned</span>
+                        }
+                    </td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    }
+</div>
+
+@code {
+    private readonly DateOnly _today = DateOnly.FromDateTime(DateTime.Now);
+
+    private IReadOnlyList<TermOption> _terms = [];
+    private List<ClassListItem> _classes = [];
+    private string _termId = string.Empty;
+    private bool _loading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _terms = await ClassService.ListTermsAsync();
+
+        // Default to the term containing today so the page opens on what is actually running,
+        // rather than on a mix of every term the studio has ever offered.
+        _termId = (_terms.FirstOrDefault(t => t.Contains(_today)) ?? _terms.FirstOrDefault())
+            ?.Id.ToString() ?? string.Empty;
+
+        await Reload();
+    }
+
+    private async Task Reload()
+    {
+        _loading = true;
+
+        var termId = Guid.TryParse(_termId, out var parsed) ? parsed : (Guid?)null;
+        _classes = (await ClassService.ListAsync(termId)).ToList();
+
+        _loading = false;
+    }
+
+    /// <summary>
+    /// Assignments in force today, ordered lead-first.
+    /// </summary>
+    /// <remarks>
+    /// Filtered rather than showing everything, because a substitute booked for one date in
+    /// November is not who teaches the class — listing them alongside the lead all term would
+    /// misrepresent the roster for the sake of showing more rows.
+    /// </remarks>
+    private IEnumerable<ClassAssignmentView> CurrentAssignments(ClassListItem danceClass) =>
+        danceClass.Assignments.Where(a => a.IsCurrent(_today)).OrderBy(a => a.Role);
+}

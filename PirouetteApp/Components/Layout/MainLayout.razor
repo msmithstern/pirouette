@@ -1,6 +1,27 @@
-﻿@inherits LayoutComponentBase
+@inherits LayoutComponentBase
 
-@Body
+<div class="layout">
+    <aside class="sidebar">
+        <a class="brand" href="/">
+            Pirouette
+            <span>Dance Academy</span>
+        </a>
+
+        <NavMenu/>
+
+        <div class="sidebar-footer">
+            @* Named plainly rather than dressed up as a signed-in user. Authentication lands in
+               M7; until then the studio comes from configuration, and pretending otherwise in
+               the chrome would be the kind of placeholder that quietly becomes permanent. *@
+            Single-tenant preview<br/>
+            No sign-in yet
+        </div>
+    </aside>
+
+    <main class="content">
+        @Body
+    </main>
+</div>
 
 <div id="blazor-error-ui" data-nosnippet>
     An unhandled error has occurred.

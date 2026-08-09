@@ -1,38 +1,485 @@
-h1:focus {
+/* ---------------------------------------------------------------------------
+   Pirouette — hand-written stylesheet, no CSS framework.
+
+   The template's Bootstrap classes were never actually loading (App.razor links
+   only this file), so the choice was to add a framework or write the ~300 lines
+   the app needs. At this scope the second is smaller than the first.
+   --------------------------------------------------------------------------- */
+
+:root {
+    --ink: #17141f;
+    --ink-soft: #5c5567;
+    --ink-faint: #8d8697;
+
+    --page: #faf8fb;
+    --surface: #ffffff;
+    --line: #e7e2ec;
+    --line-strong: #d5cede;
+
+    --accent: #7b3f7e;
+    --accent-soft: #f3e9f4;
+    --accent-ink: #5c2c5f;
+
+    --ok: #1f7a55;
+    --ok-soft: #e3f4ec;
+    --warn: #9a5b12;
+    --warn-soft: #fbeedd;
+    --danger: #a72424;
+    --danger-soft: #fbe9e9;
+
+    --radius: 10px;
+    --shadow: 0 1px 2px rgb(23 20 31 / 6%), 0 8px 24px rgb(23 20 31 / 4%);
+
+    --sidebar: 240px;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+html, body {
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-size: 15px;
+    line-height: 1.55;
+    color: var(--ink);
+    background: var(--page);
+    -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3 {
+    margin: 0;
+    line-height: 1.2;
+    letter-spacing: -0.01em;
+    font-weight: 600;
+}
+
+h1 { font-size: 1.6rem; }
+h2 { font-size: 1.15rem; }
+h3 { font-size: 0.95rem; }
+
+h1:focus, h2:focus {
     outline: none;
 }
 
-.valid.modified:not([type=checkbox]) {
-    outline: 1px solid #26b050;
+a {
+    color: var(--accent);
+    text-decoration: none;
 }
 
-.invalid {
-    outline: 1px solid #e50000;
+a:hover {
+    text-decoration: underline;
 }
 
-.validation-message {
-    color: #e50000;
+p { margin: 0 0 0.75rem; }
+
+/* --- Layout ------------------------------------------------------------- */
+
+.layout {
+    display: grid;
+    grid-template-columns: var(--sidebar) 1fr;
+    min-height: 100vh;
+}
+
+.sidebar {
+    background: var(--surface);
+    border-right: 1px solid var(--line);
+    padding: 1.5rem 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.brand {
+    display: block;
+    font-size: 1.25rem;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    color: var(--ink);
+    padding: 0 0.5rem;
+}
+
+.brand:hover { text-decoration: none; }
+
+.brand span {
+    display: block;
+    font-size: 0.72rem;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    margin-top: 0.15rem;
+}
+
+.nav {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+}
+
+.nav a {
+    display: block;
+    padding: 0.5rem 0.75rem;
+    border-radius: 8px;
+    color: var(--ink-soft);
+    font-weight: 500;
+}
+
+.nav a:hover {
+    background: var(--page);
+    color: var(--ink);
+    text-decoration: none;
+}
+
+.nav a.active {
+    background: var(--accent-soft);
+    color: var(--accent-ink);
+}
+
+.sidebar-footer {
+    margin-top: auto;
+    padding: 0 0.75rem;
+    font-size: 0.75rem;
+    color: var(--ink-faint);
+}
+
+.content {
+    padding: 2rem 2.5rem 4rem;
+    max-width: 1100px;
+}
+
+.page-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.page-header .subtitle {
+    color: var(--ink-soft);
+    margin: 0.35rem 0 0;
+}
+
+.breadcrumb {
+    font-size: 0.8rem;
+    color: var(--ink-faint);
+    margin-bottom: 0.5rem;
+}
+
+/* --- Cards -------------------------------------------------------------- */
+
+.card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 1.25rem 1.5rem;
+    margin-bottom: 1.25rem;
+}
+
+.card > h2 {
+    margin-bottom: 0.25rem;
+}
+
+.card > .card-hint {
+    color: var(--ink-soft);
+    font-size: 0.85rem;
+    margin-bottom: 1rem;
+}
+
+.card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.stat {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 1rem 1.25rem;
+}
+
+.stat .value {
+    font-size: 1.9rem;
+    font-weight: 600;
+    letter-spacing: -0.03em;
+    line-height: 1.1;
+}
+
+.stat .label {
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--ink-faint);
+    margin-top: 0.2rem;
+}
+
+/* --- Tables ------------------------------------------------------------- */
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+}
+
+thead th {
+    text-align: left;
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    padding: 0 0.75rem 0.6rem;
+    border-bottom: 1px solid var(--line-strong);
+    white-space: nowrap;
+}
+
+tbody td {
+    padding: 0.7rem 0.75rem;
+    border-bottom: 1px solid var(--line);
+    vertical-align: top;
+}
+
+tbody tr:last-child td {
+    border-bottom: none;
+}
+
+tbody tr:hover {
+    background: var(--page);
+}
+
+td .muted, .muted {
+    color: var(--ink-faint);
+}
+
+.numeric {
+    font-variant-numeric: tabular-nums;
+}
+
+/* --- Badges ------------------------------------------------------------- */
+
+.badge {
+    display: inline-block;
+    padding: 0.1rem 0.5rem;
+    border-radius: 999px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    background: var(--page);
+    color: var(--ink-soft);
+    border: 1px solid var(--line-strong);
+    white-space: nowrap;
+}
+
+.badge + .badge { margin-left: 0.3rem; }
+
+.badge.role-Owner,
+.badge.role-Admin {
+    background: var(--accent-soft);
+    color: var(--accent-ink);
+    border-color: transparent;
+}
+
+.badge.role-Staff,
+.badge.role-Lead {
+    background: var(--ok-soft);
+    color: var(--ok);
+    border-color: transparent;
+}
+
+.badge.role-AssistantStaff,
+.badge.role-Assistant {
+    background: var(--warn-soft);
+    color: var(--warn);
+    border-color: transparent;
+}
+
+.badge.role-Substitute {
+    background: var(--danger-soft);
+    color: var(--danger);
+    border-color: transparent;
+}
+
+.badge.ended {
+    opacity: 0.55;
+    text-decoration: line-through;
+}
+
+/* --- Forms and buttons -------------------------------------------------- */
+
+.field {
+    margin-bottom: 1rem;
+}
+
+.field label {
+    display: block;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--ink-soft);
+    margin-bottom: 0.3rem;
+}
+
+.field .help {
+    font-size: 0.78rem;
+    color: var(--ink-faint);
+    margin-top: 0.25rem;
+}
+
+input[type=text], input[type=email], input[type=date],
+input[type=search], input[type=number], select {
+    width: 100%;
+    padding: 0.5rem 0.65rem;
+    font: inherit;
+    font-size: 0.9rem;
+    color: var(--ink);
+    background: var(--surface);
+    border: 1px solid var(--line-strong);
+    border-radius: 8px;
+}
+
+input:focus, select:focus {
+    outline: 2px solid var(--accent);
+    outline-offset: -1px;
+    border-color: var(--accent);
+}
+
+.field-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+}
+
+.button {
+    display: inline-block;
+    padding: 0.5rem 1rem;
+    font: inherit;
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: #fff;
+    background: var(--accent);
+    border: 1px solid var(--accent);
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+.button:hover {
+    background: var(--accent-ink);
+    text-decoration: none;
+    color: #fff;
+}
+
+.button.secondary {
+    background: var(--surface);
+    color: var(--ink-soft);
+    border-color: var(--line-strong);
+}
+
+.button.secondary:hover {
+    background: var(--page);
+    color: var(--ink);
+}
+
+.form-actions {
+    display: flex;
+    gap: 0.6rem;
+    align-items: center;
+    margin-top: 1.5rem;
+}
+
+.toolbar {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.toolbar input[type=search] { max-width: 320px; }
+.toolbar select { max-width: 220px; }
+
+/* --- Messages ----------------------------------------------------------- */
+
+.alert {
+    padding: 0.7rem 0.9rem;
+    border-radius: 8px;
+    font-size: 0.88rem;
+    margin-bottom: 1rem;
+    background: var(--danger-soft);
+    color: var(--danger);
+    border: 1px solid rgb(167 36 36 / 20%);
+}
+
+.empty {
+    padding: 2.5rem 1rem;
+    text-align: center;
+    color: var(--ink-faint);
+}
+
+.definition-list {
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    gap: 0.5rem 1.5rem;
+    font-size: 0.9rem;
+    margin: 0;
+}
+
+.definition-list dt {
+    color: var(--ink-faint);
+    font-size: 0.8rem;
+    padding-top: 0.1rem;
+}
+
+.definition-list dd { margin: 0; }
+
+/* --- Template leftovers ------------------------------------------------- */
+
+.valid.modified:not([type=checkbox]) { outline: 1px solid var(--ok); }
+.invalid { outline: 1px solid var(--danger); }
+.validation-message { color: var(--danger); font-size: 0.8rem; }
+
+#blazor-error-ui {
+    display: none;
+    position: fixed;
+    inset: auto 0 0 0;
+    z-index: 1000;
+    padding: 0.7rem 1.25rem;
+    background: #fbeedd;
+    color: var(--warn);
+    box-shadow: 0 -1px 2px rgb(0 0 0 / 20%);
+}
+
+#blazor-error-ui .dismiss {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.75rem;
+    cursor: pointer;
 }
 
 .blazor-error-boundary {
-    background: url(data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNTYiIGhlaWdodD0iNDkiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgeG1sbnM6eGxpbms9Imh0dHA6Ly93d3cudzMub3JnLzE5OTkveGxpbmsiIG92ZXJmbG93PSJoaWRkZW4iPjxkZWZzPjxjbGlwUGF0aCBpZD0iY2xpcDAiPjxyZWN0IHg9IjIzNSIgeT0iNTEiIHdpZHRoPSI1NiIgaGVpZ2h0PSI0OSIvPjwvY2xpcFBhdGg+PC9kZWZzPjxnIGNsaXAtcGF0aD0idXJsKCNjbGlwMCkiIHRyYW5zZm9ybT0idHJhbnNsYXRlKC0yMzUgLTUxKSI+PHBhdGggZD0iTTI2My41MDYgNTFDMjY0LjcxNyA1MSAyNjUuODEzIDUxLjQ4MzcgMjY2LjYwNiA1Mi4yNjU4TDI2Ny4wNTIgNTIuNzk4NyAyNjcuNTM5IDUzLjYyODMgMjkwLjE4NSA5Mi4xODMxIDI5MC41NDUgOTIuNzk1IDI5MC42NTYgOTIuOTk2QzI5MC44NzcgOTMuNTEzIDI5MSA5NC4wODE1IDI5MSA5NC42NzgyIDI5MSA5Ny4wNjUxIDI4OS4wMzggOTkgMjg2LjYxNyA5OUwyNDAuMzgzIDk5QzIzNy45NjMgOTkgMjM2IDk3LjA2NTEgMjM2IDk0LjY3ODIgMjM2IDk0LjM3OTkgMjM2LjAzMSA5NC4wODg2IDIzNi4wODkgOTMuODA3MkwyMzYuMzM4IDkzLjAxNjIgMjM2Ljg1OCA5Mi4xMzE0IDI1OS40NzMgNTMuNjI5NCAyNTkuOTYxIDUyLjc5ODUgMjYwLjQwNyA1Mi4yNjU4QzI2MS4yIDUxLjQ4MzcgMjYyLjI5NiA1MSAyNjMuNTA2IDUxWk0yNjMuNTg2IDY2LjAxODNDMjYwLjczNyA2Ni4wMTgzIDI1OS4zMTMgNjcuMTI0NSAyNTkuMzEzIDY5LjMzNyAyNTkuMzEzIDY5LjYxMDIgMjU5LjMzMiA2OS44NjA4IDI1OS4zNzEgNzAuMDg4N0wyNjEuNzk1IDg0LjAxNjEgMjY1LjM4IDg0LjAxNjEgMjY3LjgyMSA2OS43NDc1QzI2Ny44NiA2OS43MzA5IDI2Ny44NzkgNjkuNTg3NyAyNjcuODc5IDY5LjMxNzkgMjY3Ljg3OSA2Ny4xMTgyIDI2Ni40NDggNjYuMDE4MyAyNjMuNTg2IDY2LjAxODNaTTI2My41NzYgODYuMDU0N0MyNjEuMDQ5IDg2LjA1NDcgMjU5Ljc4NiA4Ny4zMDA1IDI1OS43ODYgODkuNzkyMSAyNTkuNzg2IDkyLjI4MzcgMjYxLjA0OSA5My41Mjk1IDI2My41NzYgOTMuNTI5NSAyNjYuMTE2IDkzLjUyOTUgMjY3LjM4NyA5Mi4yODM3IDI2Ny4zODcgODkuNzkyMSAyNjcuMzg3IDg3LjMwMDUgMjY2LjExNiA4Ni4wNTQ3IDI2My41NzYgODYuMDU0N1oiIGZpbGw9IiNGRkU1MDAiIGZpbGwtcnVsZT0iZXZlbm9kZCIvPjwvZz48L3N2Zz4=) no-repeat 1rem/1.8rem, #b32121;
-    padding: 1rem 1rem 1rem 3.7rem;
-    color: white;
+    padding: 1rem;
+    background: var(--danger);
+    color: #fff;
+    border-radius: var(--radius);
 }
 
-    .blazor-error-boundary::after {
-        content: "An error has occurred."
+.blazor-error-boundary::after {
+    content: "An error has occurred.";
+}
+
+@media (max-width: 800px) {
+    .layout { grid-template-columns: 1fr; }
+
+    .sidebar {
+        border-right: none;
+        border-bottom: 1px solid var(--line);
     }
 
-.darker-border-checkbox.form-check-input {
-    border-color: #929292;
-}
-
-.form-floating > .form-control-plaintext::placeholder, .form-floating > .form-control::placeholder {
-    color: var(--bs-secondary-color);
-    text-align: end;
-}
-
-.form-floating > .form-control-plaintext:focus::placeholder, .form-floating > .form-control:focus::placeholder {
-    text-align: start;
+    .content { padding: 1.5rem 1.25rem 3rem; }
+    .field-row { grid-template-columns: 1fr; }
 }
